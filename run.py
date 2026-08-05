@@ -14,7 +14,7 @@ COMPETITIONS = {
     "annual": {"dir": Path("data/annual_competition"), "scored": False},
 }
 
-SUBMIT_URL = "https://huggingface.co/spaces/MetabonetBench/leaderboard-space"
+SUBMIT_URL = "https://metabonetglucose-leaderboard.hf.space/"
 
 
 def validate_predictions_format(predictions_df, template_df):

@@ -2,7 +2,7 @@
 
 This repository contains the evaluation script for the MetaboNet-Glucose prediction benchmark. 
 
-[🏆 View Leaderboard 🏆](https://huggingface.co/spaces/MetabonetBench/leaderboard-space)
+[🏆 View Leaderboard 🏆](https://metabonetglucose-leaderboard.hf.space/)
 
 ## Installation
 
@@ -135,13 +135,13 @@ The steps below are for submitting to the **live leaderboard** (`--competition l
 
    ✅ Format is valid! You are ready to submit!
    🚀 Submit your predictions at:
-      https://huggingface.co/spaces/MetabonetBench/leaderboard-space
+      https://metabonetglucose-leaderboard.hf.space/
 
    ============================================================
    ```
 
 3. **Submit**: Once validation passes, submit your predictions at:
-https://huggingface.co/spaces/MetabonetBench/leaderboard-space
+https://metabonetglucose-leaderboard.hf.space/
 
 
 ## Annual Competition
@@ -168,7 +168,7 @@ metrics are printed.
    metrics table.
 
 3. **Submit**: Once validation passes, submit your predictions at:
-https://huggingface.co/spaces/MetabonetBench/leaderboard-space
+https://metabonetglucose-leaderboard.hf.space/
 
 
 ## Files
