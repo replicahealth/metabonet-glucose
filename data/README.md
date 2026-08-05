@@ -1,19 +1,41 @@
 # Data folder
 
-This folder contains the two parquet files that drive evaluation: a submission scaffold and the held-out ground truth. Both are tracked via [Git LFS](https://git-lfs.com/), so make sure LFS is installed before cloning if you want the actual file contents (otherwise you'll get small pointer files).
+This folder holds the parquet files that drive evaluation, organized into one subfolder per
+competition format. Every parquet file is tracked via [Git LFS](https://git-lfs.com/), so make
+sure LFS is installed before cloning if you want the actual file contents (otherwise you'll get
+small pointer files).
+
+```
+data/
+├── live_leaderboard/     # scored locally — targets shipped
+│   ├── template.parquet
+│   └── targets.parquet
+└── annual_competition/   # targets secret — format validation only
+    └── template.parquet
+```
 
 ## Files at a glance
 
 | File | Format | Rows | Size | Purpose |
 |---|---|---|---|---|
-| `template.parquet` | Apache Parquet | 2,648,987 | ~19 MB | Submission scaffold — defines exact row order and required columns |
-| `targets.parquet` | Apache Parquet | 2,648,987 | ~33 MB | Ground truth — used by `run.py` to score submissions |
+| `live_leaderboard/template.parquet` | Apache Parquet | 2,648,987 | ~19 MB | Live-leaderboard submission scaffold — defines exact row order and required columns |
+| `live_leaderboard/targets.parquet` | Apache Parquet | 2,648,987 | ~33 MB | Live-leaderboard ground truth — used by `run.py --competition live` to score submissions |
+| `annual_competition/template.parquet` | Apache Parquet | — | ~25 KB | Annual-competition submission scaffold — **no targets file; targets are secret** |
 
-The two files are row-for-row aligned on `(id, source_file, date)`, which is what lets `run.py` evaluate submissions with a direct element-wise comparison.
+Within the live leaderboard, `template.parquet` and `targets.parquet` are row-for-row aligned on
+`(id, source_file, date)`, which is what lets `run.py` evaluate submissions with a direct
+element-wise comparison. The annual competition ships only a template — its targets are withheld
+server-side, so `run.py --competition annual` validates format only and does not score locally.
+
+The two templates share the same column schema; only the row set differs. The schemas below
+apply to both formats.
 
 ## `template.parquet`
 
-The submission scaffold. Copy it, fill in the `pred_*` columns with your model's outputs, and submit the result. See the **Quick Start** section of the top-level [README](../README.md) for the exact submission rules.
+The submission scaffold (present in both `live_leaderboard/` and `annual_competition/`). Copy the
+one for your competition, fill in the `pred_*` columns with your model's outputs, and submit the
+result. See the **Quick Start** section of the top-level [README](../README.md) for the exact
+submission rules.
 
 | Column | Type | Description |
 |---|---|---|
@@ -27,7 +49,10 @@ The submission scaffold. Copy it, fill in the `pred_*` columns with your model's
 
 ## `targets.parquet`
 
-The held-out ground truth. **Do not modify.** `run.py` reads this file to score submissions against measured CGM values.
+The held-out ground truth for the **live leaderboard** (`live_leaderboard/targets.parquet`).
+**Do not modify.** `run.py --competition live` reads this file to score submissions against
+measured CGM values. There is no `targets.parquet` for the annual competition — its targets are
+kept secret and scoring runs server-side.
 
 | Column | Type | Description |
 |---|---|---|
@@ -39,9 +64,9 @@ The held-out ground truth. **Do not modify.** `run.py` reads this file to score 
 | `target_90` | float64 | Measured CGM glucose 90 minutes after `date` |
 | `target_120` | float64 | Measured CGM glucose 120 minutes after `date` |
 
-## How the test set was built
+## How the live-leaderboard test set was built
 
-`targets.parquet` is a filtered subset of the full MetaboNet test set published on [metabo-net.org](https://metabo-net.org). We applied the rules below to produce a test set where every sample has the inputs a real-world automated-insulin-delivery (AID) system would need to make a dosing decision.
+The live leaderboard's `targets.parquet` is a filtered subset of the full MetaboNet test set published on [metabo-net.org](https://metabo-net.org). We applied the rules below to produce a test set where every sample has the inputs a real-world automated-insulin-delivery (AID) system would need to make a dosing decision.
 
 ### Guiding principles
 
@@ -90,5 +115,5 @@ The final test set covers **279 unique `(source_file, id)` pairs** across **9 so
 
 ## See also
 
-- Top-level [`README.md`](../README.md) — installation, submission format, and `run.py` usage
-- `run.py` — validates submissions against `template.parquet` and scores them against `targets.parquet`
+- Top-level [`README.md`](../README.md) — installation, submission format, competition formats, and `run.py` usage
+- `run.py` — validates submissions against the chosen competition's `template.parquet`; for the live leaderboard (`--competition live`) it also scores against `live_leaderboard/targets.parquet`
