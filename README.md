@@ -125,11 +125,11 @@ The steps below are for submitting to the **live leaderboard** (`--competition l
       MARD: 33.51 %
 
       DTS Error Grid Zones:
-      • Zone A (Clinically Accurate):     38.2%
-      • Zone B (Benign Errors):           47.3%
-      • Zone C (Overcorrection):          13.5%
-      • Zone D (Failure to Detect):       0.9%
-      • Zone E (Erroneous Treatment):     0.0%
+      • Zone A (No Risk):        38.2%
+      • Zone B (Mild Risk):      47.3%
+      • Zone C (Moderate Risk):  13.5%
+      • Zone D (High Risk):      0.9%
+      • Zone E (Extreme Risk):   0.0%
 
    ============================================================
 
