@@ -1,8 +1,20 @@
+import argparse
 import pandas as pd
 import numpy as np
 import sys
 from pathlib import Path
 from metrics import calculate_dts_error_grid, calculate_rmse, calculate_mard
+
+
+# Each competition format has its own data folder. The live leaderboard ships the
+# held-out targets so submissions can be scored locally; the annual competition keeps
+# its targets secret, so we can only validate a submission's format against the template.
+COMPETITIONS = {
+    "live":   {"dir": Path("data/live_leaderboard"),   "scored": True},
+    "annual": {"dir": Path("data/annual_competition"), "scored": False},
+}
+
+SUBMIT_URL = "https://huggingface.co/spaces/MetabonetBench/leaderboard-space"
 
 
 def validate_predictions_format(predictions_df, template_df):
@@ -174,61 +186,69 @@ def calculate_metrics(predictions_df, targets_df, horizon='60'):
 
 
 def main():
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print("Usage: python run.py <predictions_file.parquet> [horizon]")
-        print("\nExamples:")
-        print("  python run.py my_predictions.parquet          # Default: 60-minute horizon")
-        print("  python run.py my_predictions.parquet 30       # 30-minute horizon only")
-        print("  python run.py my_predictions.parquet all      # All horizons + overall")
-        print("\nValid horizons: 30, 60, 90, 120, all")
-        sys.exit(1)
-    
-    predictions_file = Path(sys.argv[1])
-    
-    # Parse horizon parameter (default to 60)
-    horizon = '60'
-    if len(sys.argv) == 3:
-        horizon = sys.argv[2]
-        valid_horizons = ['30', '60', '90', '120', 'all']
-        if horizon not in valid_horizons:
-            print(f"❌ Error: Invalid horizon '{horizon}'")
-            print(f"Valid horizons: {', '.join(valid_horizons)}")
-            sys.exit(1)
-    
+    parser = argparse.ArgumentParser(
+        description="Validate (and, for the live leaderboard, score) MetaboNet glucose predictions.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  python run.py my_predictions.parquet --competition live                # live leaderboard, 60-min horizon\n"
+            "  python run.py my_predictions.parquet --competition live --horizon 30    # live leaderboard, 30-min horizon\n"
+            "  python run.py my_predictions.parquet --competition live --horizon all   # live leaderboard, all horizons\n"
+            "  python run.py my_predictions.parquet --competition annual              # annual competition, validate format only"
+        ),
+    )
+    parser.add_argument("predictions_file", type=Path,
+                        help="Path to your predictions parquet file")
+    parser.add_argument("--competition", required=True, choices=sorted(COMPETITIONS),
+                        help="Which competition format to validate against (required)")
+    parser.add_argument("--horizon", default="60",
+                        choices=["30", "60", "90", "120", "all"],
+                        help="Prediction horizon to score (live leaderboard only; default: 60)")
+    args = parser.parse_args()
+
+    predictions_file = args.predictions_file
+    competition = COMPETITIONS[args.competition]
+    scored = competition["scored"]
+    horizon = args.horizon
+
     if not predictions_file.exists():
         print(f"❌ Error: File '{predictions_file}' not found")
         sys.exit(1)
-    
+
     if not predictions_file.suffix == '.parquet':
         print(f"❌ Error: File must be in parquet format")
         sys.exit(1)
-    
-    template_file = Path("data/template.parquet")
-    targets_file = Path("data/targets.parquet")
-    
+
+    # The annual competition keeps its targets secret, so there is nothing to score against.
+    if not scored and args.horizon != "60":
+        print(f"ℹ️  The '{args.competition}' competition validates format only — ignoring horizon '{horizon}'.")
+
+    template_file = competition["dir"] / "template.parquet"
+    targets_file = competition["dir"] / "targets.parquet"
+
     if not template_file.exists():
         print(f"❌ Error: Template file '{template_file}' not found")
         sys.exit(1)
-    
-    if not targets_file.exists():
+
+    if scored and not targets_file.exists():
         print(f"❌ Error: Targets file '{targets_file}' not found")
         sys.exit(1)
-    
+
     try:
         print("🔍 Loading files...")
         predictions_df = pd.read_parquet(predictions_file)
         template_df = pd.read_parquet(template_file)
-        targets_df = pd.read_parquet(targets_file)
-        
+        targets_df = pd.read_parquet(targets_file) if scored else None
+
         print("✅ Files loaded successfully")
-        
+
     except Exception as e:
         print(f"❌ Error loading files: {e}")
         sys.exit(1)
-    
+
     print("\n📋 Validating format...")
     is_valid, error_msg = validate_predictions_format(predictions_df, template_df)
-    
+
     if not is_valid:
         print(f"\n❌ FORMAT VALIDATION FAILED:\n")
         print(error_msg)
@@ -245,38 +265,48 @@ def main():
     populated_pred_cols = [c for c in ['pred_30', 'pred_60', 'pred_90', 'pred_120']
                            if c in predictions_df.columns and not predictions_df[c].isna().any()]
     print(f"   Populated horizons: {', '.join(populated_pred_cols)}")
-    
+
+    # The annual competition can only validate format — targets are secret, so we stop here.
+    if not scored:
+        print("\n" + "="*60)
+        print("\n✅ Format is valid! You are ready to submit!")
+        print("   (Annual competition: scoring runs server-side against secret targets.)")
+        print("🚀 Submit your predictions at:")
+        print(f"   {SUBMIT_URL}")
+        print("\n" + "="*60)
+        return
+
     print(f"\n📊 Calculating metrics for horizon: {horizon}...")
     try:
         metrics = calculate_metrics(predictions_df, targets_df, horizon)
     except ValueError as e:
         print(f"\n❌ {e}")
         sys.exit(1)
-    
+
     print("\n" + "="*60)
     print("                    EVALUATION RESULTS")
     print("="*60)
-    
+
     # Display metrics based on what was calculated
     for horizon_key, horizon_metrics in metrics.items():
         if horizon_key == 'overall':
             print(f"\n📊 OVERALL METRICS (All Horizons Combined):")
         else:
             print(f"\n📈 {horizon_key.replace('_', ' ').title()} Ahead Predictions:")
-        
+
         print(f"   RMSE: {horizon_metrics['RMSE']:.2f} mg/dL")
         print(f"   MARD: {horizon_metrics['MARD']:.2f} %")
         print(f"\n   DTS Error Grid Zones:")
-        print(f"   • Zone A (Clinically Accurate):     {horizon_metrics['DTS_A']:.1f}%")
-        print(f"   • Zone B (Benign Errors):           {horizon_metrics['DTS_B']:.1f}%")
-        print(f"   • Zone C (Overcorrection):          {horizon_metrics['DTS_C']:.1f}%")
-        print(f"   • Zone D (Failure to Detect):       {horizon_metrics['DTS_D']:.1f}%")
-        print(f"   • Zone E (Erroneous Treatment):     {horizon_metrics['DTS_E']:.1f}%")
-    
+        print(f"   • Zone A (No Risk):        {horizon_metrics['DTS_A']:.1f}%")
+        print(f"   • Zone B (Mild Risk):      {horizon_metrics['DTS_B']:.1f}%")
+        print(f"   • Zone C (Moderate Risk):  {horizon_metrics['DTS_C']:.1f}%")
+        print(f"   • Zone D (High Risk):      {horizon_metrics['DTS_D']:.1f}%")
+        print(f"   • Zone E (Extreme Risk):   {horizon_metrics['DTS_E']:.1f}%")
+
     print("\n" + "="*60)
     print("\n✅ Format is valid! You are ready to submit!")
     print("🚀 Submit your predictions at:")
-    print("   https://huggingface.co/spaces/MetabonetBench/leaderboard-space")
+    print(f"   {SUBMIT_URL}")
     print("\n" + "="*60)
 
 
