@@ -67,6 +67,10 @@ MetaboNet runs two competition formats, each with its own data folder under `dat
 targeting. The submission format (columns and rules) is identical for both; only the template
 you validate against — and whether scoring runs locally — differ.
 
+**What-if (conditional) models are welcome.** For both the live leaderboard and the annual
+competition, models that condition on known future inputs (e.g. planned insulin doses or
+announced carbs) — so-called "what-if" or conditional models — are allowed.
+
 ## Quick Start (live leaderboard)
 
 The steps below are for submitting to the **live leaderboard** (`--competition live`). For the
@@ -157,17 +161,23 @@ The submission format is identical to the live leaderboard (same `pred_30`/`pred
 left entirely empty). The only differences are the template you validate against and that no
 metrics are printed.
 
-1. **Generate and format predictions** exactly as for the live leaderboard, but match the rows
+1. **Download the annual competition test set** from the
+   [MetaboNet Glucose Prediction Challenge page](https://metabo-net.org/glucose-prediction-challenge)
+   by clicking the **Download** button. This provides the model inputs for the held-out test set —
+   the `data/annual_competition/template.parquet` shipped in this repo only defines the rows you
+   must predict for, not the input data itself.
+
+2. **Generate and format predictions** exactly as for the live leaderboard, but match the rows
    and columns of `data/annual_competition/template.parquet`.
 
-2. **Validate the format** (no horizon needed — nothing is scored locally):
+3. **Validate the format** (no horizon needed — nothing is scored locally):
    ```bash
    python run.py your_predictions.parquet --competition annual
    ```
    On success you'll see the format-validation report and a "ready to submit" message, with no
    metrics table.
 
-3. **Submit**: Once validation passes, submit your predictions at:
+4. **Submit**: Once validation passes, submit your predictions at:
 https://metabonetglucose-leaderboard.hf.space/
 
 
